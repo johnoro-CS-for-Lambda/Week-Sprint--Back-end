@@ -1,6 +1,9 @@
 {
   "name": "back-end-project-week",
   "version": "1.0.0",
+  "engines": {
+    "node": "10.3.0"
+  },
   "description": "Back-end for my Lambda Notes front-end",
   "main": "index.js",
   "scripts": {
