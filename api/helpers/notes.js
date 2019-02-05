@@ -69,69 +69,32 @@ const DELETE = (req, res) => {
     });
 };
 
-const SWITCH = (req, res) => {
+const SWITCH = async (req, res) => {
   const { id, id2 } = req.params;
-  // get first note's data
-  db('notes').where({ id }).first()
-    .then(note => {
-      if (note) {
-        const { title, text, created_at } = note;
-        // get second note's data
-        db('notes').where({ id: id2 }).first()
-          .then(note => {
-            if (note) {
-              const title2 = note.title;
-              const text2 = note.text;
-              const ca2 = note.created_at;
-              // update second note
-              db('notes').where({ id: id2 })
-                .update({ title, text, created_at })
-                .then(count => {
-                  if (count) {
-                    // update first note
-                    db('notes').where({ id })
-                      .update({ title: title2, text: text2, created_at: ca2 })
-                      .then(c => {
-                        res.status(200).json(count + c);
-                      })
-                      .catch(err => {
-                        console.error(err);
-                        res.status(500)
-                          .json({
-                            error: 'Something went wrong while switching the last note.',
-                            message: err.message
-                          });
-                      });
-                  }
-                })
-                .catch(err => {
-                  console.error(err);
-                  res.status(500)
-                    .json({
-                      error: 'Something went wrong while switching the notes.',
-                      message: err.message
-                    });
-                });
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            res.status(500)
-              .json({
-                error: 'Something went wrong while fetching the to-be-switched notes.',
-                message: err.message
-              });
-          });
-        }
+  try {
+    const note1 = await db('notes').where({ id }).first();
+    const { title, text, created_at } = note1;
+    
+    const note2 = await db('notes').where({ id: id2 }).first();
+    const { title2: title, text2: text, ca2: created_at } = note2;
+
+    const updateCount = (
+      await db('notes').where({ id: id2 }).update({
+        title, text, created_at
       })
-      .catch(err => {
-        console.error(err);
-        res.status(500)
-          .json({
-            error: 'Something went wrong while fetching the to-be-switched notes.',
-            message: err.message
-          });
+      + await db('notes').where({ id }).update({
+        title: title2, text: text2, created_at: ca2
+      })
+    );
+
+    updateCount.then(count => res.status(200).json({ count }));
+  } catch(err) {
+    console.error(err);
+    res.status(500)
+      .json({
+        message: err.message
       });
+  }
 };
 
 module.exports = {
