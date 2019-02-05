@@ -1,72 +1,51 @@
 const db = require('../dbConfig');
 
-const GET_ALL = (req, res) => {
-  db('notes')
-    .then(notes => res.status(200).json(notes.reverse()))
-    .catch(err => {
-      console.error(err);
-      res.status(500).json({
-        error: 'Something went wrong while fetching the notes.',
-        message: err.message
-      });
-    });
+const handleServErr = (res, action) => err => {
+  console.error(err);
+  res.status(500).json({
+    error: `Something went wrong while ${action}.`,
+    message: err.message
+  });
 };
 
-const GET_ONE = (req, res) => {
+const GET_ALL = (_, res) => {
+  db('notes')
+    .then(notes => res.status(200).json(notes.reverse()))
+    .catch(handleServErr(res, 'fetching notes'));
+};
+
+const GET_ONE = async (req, res) => {
   const { id } = req.params;
-  db('notes').where({ id }).first()
-    .then(note => {
-      if (!note) res.status(404).json({
-        message: 'The requested note wasn\'t found.'
-      });
-      else res.status(200).json(note);
-    })
-    .catch(err => {
-      console.error(err);
-      res.status(500).json({
-        error: 'Something went wrong while fetching the note.',
-        message: err.message
-      });
+  const note = await db('notes').where({ id }).first();
+  try {
+    if (!note) res.status(404).json({
+      message: 'The requested note wasn\'t found.'
     });
+    else res.status(200).json(note);
+  } catch (err) {
+    handleServErr(res, 'fetching note')(err);
+  }
 };
 
 const POST = (req, res) => {
   const { title, text } = req.body;
   db('notes').insert({ title, text })
-    .then(ids => res.status(201).json(ids[0]))
-    .catch(err => {
-      console.error(err);
-      res.status(500).json({
-        error: 'Something went wrong while creating the note.',
-        message: err.message
-      });
-    })
+    .then(([ id ]) => res.status(201).json(id))
+    .catch(handleServErr(res, 'creating note'));
 };
 
 const PUT = (req, res) => {
   const { id } = req.params;
   db('notes').where({ id }).update(req.body)
     .then(count => res.status(200).json(count))
-    .catch(err => {
-      console.error(err);
-      res.status(500).json({
-        error: 'Something went wrong while updating the note.',
-        message: err.message
-      });
-    });
+    .catch(handleServErr(res, 'updating note'));
 };
 
 const DELETE = (req, res) => {
   const { id } = req.params;
   db('notes').where({ id }).del()
     .then(count => res.status(200).json(count))
-    .catch(err => {
-      console.error(err);
-      res.status(500).json({
-        error: 'Something went wrong while deleting the note.',
-        message: err.message
-      });
-    });
+    .catch(handleServErr(res, 'deleting note'));
 };
 
 const SWITCH = async (req, res) => {
@@ -76,7 +55,7 @@ const SWITCH = async (req, res) => {
     const { title, text, created_at } = note1;
     
     const note2 = await db('notes').where({ id: id2 }).first();
-    const { title2: title, text2: text, ca2: created_at } = note2;
+    const { title: title2, text: text2, created_at: ca2 } = note2;
 
     const updateCount = (
       await db('notes').where({ id: id2 }).update({
@@ -87,13 +66,9 @@ const SWITCH = async (req, res) => {
       })
     );
 
-    updateCount.then(count => res.status(200).json({ count }));
+    res.status(200).json(updateCount);
   } catch(err) {
-    console.error(err);
-    res.status(500)
-      .json({
-        message: err.message
-      });
+    handleServErr(res, 'switching notes')(err);
   }
 };
 
